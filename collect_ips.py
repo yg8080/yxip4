@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 # ✅ URL源与简称
 sources = {
     'https://api.uouin.com/cloudflare.html': 'Uouin',
-    'https://ip.164746.xyz': 'ZhiXuanWang',
+    'https://ip.164746.xyz': 'ZhiXuanWang','https://cf.090227.xyz/': 'cf.090227.xyz',
     'https://raw.githubusercontent.com/ymyuuu/IPDB/main/BestCF/bestcfv4.txt': 'IPDB',
     'https://www.wetest.vip/page/cloudflare/address_v6.html': 'wetestV6'
 }
