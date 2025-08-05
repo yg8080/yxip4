@@ -2,43 +2,93 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import os
+import ipaddress
+from datetime import datetime, timedelta
 
-# 目标URL列表
-urls = ['https://monitor.gacjie.cn/page/cloudflare/ipv4.html', 
-        'https://ip.164746.xyz'
-        ]
+# ✅ URL源与简称
+sources = {
+    'https://api.uouin.com/cloudflare.html': 'Uouin',
+    'https://ip.164746.xyz': 'ZhiXuanWang',
+    'https://raw.githubusercontent.com/ymyuuu/IPDB/main/BestCF/bestcfv4.txt': 'IPDB',
+    'https://www.wetest.vip/page/cloudflare/address_v6.html': 'wetestV6'
+}
 
-# 正则表达式用于匹配IP地址
-ip_pattern = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+PORT = '443'  # 目标端口号
 
-# 检查ip.txt文件是否存在,如果存在则删除它
-if os.path.exists('ip.txt'):
-    os.remove('ip.txt')
+# 正则表达式
+ipv4_pattern = r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b'
+ipv6_candidate_pattern = r'([a-fA-F0-9:]{2,39})'
 
-# 创建一个文件来存储IP地址
-with open('ip.txt', 'w') as file:
-    for url in urls:
-        # 发送HTTP请求获取网页内容
-        response = requests.get(url)
-        
-        # 使用BeautifulSoup解析HTML
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # 根据网站的不同结构找到包含IP地址的元素
-        if url == 'https://monitor.gacjie.cn/page/cloudflare/ipv4.html':
-            elements = soup.find_all('tr')
-        elif url == 'https://ip.164746.xyz':
-            elements = soup.find_all('tr')
+headers = {
+    'User-Agent': 'Mozilla/5.0'
+}
+
+# 删除旧文件
+for file in ['ip.txt', 'ipv6.txt']:
+    if os.path.exists(file):
+        os.remove(file)
+
+# IP 分类存储
+ipv4_dict = {}
+ipv6_dict = {}
+
+# 当前时间
+utctimestamp = datetime.now().strftime('%Y%m%d%H%M')
+beijing_time = datetime.utcnow() + timedelta(hours=8)
+now_str = beijing_time.strftime('%Y-%m-%d-%H-%M')
+timestamp = beijing_time.strftime('%Y%m%d_%H%M')
+
+# 遍历来源
+for url, shortname in sources.items():
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        content = response.text
+
+        if url.endswith('.txt'):
+            text = content
         else:
-            elements = soup.find_all('li')
-        
-        # 遍历所有元素,查找IP地址
-        for element in elements:
-            element_text = element.get_text()
-            ip_matches = re.findall(ip_pattern, element_text)
-            
-            # 如果找到IP地址,则写入文件
-            for ip in ip_matches:
-                file.write(ip + '\n')
+            soup = BeautifulSoup(content, 'html.parser')
+            elements = soup.find_all('tr') or soup.find_all('li')
+            text = '\n'.join(el.get_text() for el in elements)
 
-print('IP地址已保存到ip.txt文件中。')
+        # IPv4 提取
+        for ip in re.findall(ipv4_pattern, text):
+            try:
+                if ipaddress.ip_address(ip).version == 4:
+                    ip_with_port = f"{ip}:{PORT}"
+                    comment = f"{shortname}-{timestamp}"
+                    ipv4_dict[ip_with_port] = comment
+            except ValueError:
+                continue
+
+        # IPv6 提取
+        for ip in re.findall(ipv6_candidate_pattern, text):
+            try:
+                ip_obj = ipaddress.ip_address(ip)
+                if ip_obj.version == 6:
+                    ip_with_port = f"[{ip_obj.compressed}]:{PORT}"
+                    comment = f"IPv6{shortname}-{timestamp}"
+                    ipv6_dict[ip_with_port] = comment
+            except ValueError:
+                continue
+
+    except requests.RequestException as e:
+        print(f"[请求错误] {url} -> {e}")
+    except Exception as e:
+        print(f"[解析错误] {url} -> {e}")
+
+# 写入 ip.txt（仅IPv4）
+with open('ip.txt', 'w') as f4:
+    f4.write(f"1.1.1.1:443#采集时间{now_str}\n")
+    for ip in sorted(ipv4_dict):
+        f4.write(f"{ip}#{ipv4_dict[ip]}\n")
+
+# 写入 ipv6.txt（仅IPv6）
+with open('ipv6.txt', 'w') as f6:
+    f6.write(f"1.0.0.1:443#采集时间{now_str}\n")
+    for ip in sorted(ipv6_dict):
+        f6.write(f"{ip}#{ipv6_dict[ip]}\n")
+
+print(f"✅ IPv4 写入 ip.txt，共 {len(ipv4_dict)} 个")
+print(f"✅ IPv6 写入 ipv6.txt，共 {len(ipv6_dict)} 个")
