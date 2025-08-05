@@ -11,7 +11,8 @@ sources = {
     'https://ip.164746.xyz': 'ZhiXuanWang',
     'https://raw.githubusercontent.com/ymyuuu/IPDB/main/BestCF/bestcfv4.txt': 'IPDB',
     'https://www.wetest.vip/page/cloudflare/address_v6.html': 'wetestV6'
-    }
+    'https://addressesapi.090227.xyz/cmcc-ipv6': 'enounghV6'
+}
 
 PORT = '443'  # 目标端口号
 
