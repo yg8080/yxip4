@@ -5,5 +5,4 @@ https://monitor.gacjie.cn/page/cloudflare/ipv4.html和
 还有js自动生成的https://cf.090227.xyz 和
 https://stock.hostmonit.com/CloudFlareYes
 
-
 cutepan/mycfip
